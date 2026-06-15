@@ -1,3 +1,5 @@
+import re
+
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,6 +16,32 @@ from qiskit_machine_learning.kernels import FidelityStatevectorKernel
 
 
 # ============================================================
+# Math-safe Markdown helpers
+# ============================================================
+
+_LATEX_INLINE_PATTERN = re.compile(r"\\\((.*?)\\\)", flags=re.DOTALL)
+_LATEX_DISPLAY_PATTERN = re.compile(r"\\\[(.*?)\\\]", flags=re.DOTALL)
+
+
+def _normalize_latex_delimiters(text: str) -> str:
+    r"""
+    Streamlit's Markdown renderer is most reliable with dollar-delimited
+    KaTeX syntax. Many lecture-note style strings use \(...\) and \[...\],
+    which can be shown as raw text or partially broken depending on the
+    Streamlit/frontend version. This function keeps the LaTeX content intact
+    and only changes the delimiters.
+    """
+    text = _LATEX_DISPLAY_PATTERN.sub(r"$$\1$$", text)
+    text = _LATEX_INLINE_PATTERN.sub(r"$\1$", text)
+    return text
+
+
+def md(body: str, *args, **kwargs) -> None:
+    """Render Markdown while preserving inline and display LaTeX formulas."""
+    st.markdown(_normalize_latex_delimiters(body), *args, **kwargs)
+
+
+# ============================================================
 # Page setup
 # ============================================================
 
@@ -21,7 +49,7 @@ st.set_page_config(page_title="Quantum Kernel SIR App", layout="wide")
 
 st.title("Quantum Kernel SIR: Qiskit 기반 차원축소 앱")
 
-st.markdown(
+md(
     r"""
     이 앱은 통계학의 **Sliced Inverse Regression(SIR)** 과 양자 머신러닝의
     **Quantum Kernel**을 결합한 실험용 앱입니다.
@@ -45,7 +73,7 @@ st.markdown(
 
 def render_project_overview():
     st.header("1. 프로젝트 개요")
-    st.markdown(
+    md(
         r"""
         이 앱은 데이터 \(X\)와 response \(Y\)가 주어졌을 때,
         \(Y\)를 설명하는 데 중요한 저차원 표현을 찾는 세 가지 방법을 비교합니다.
@@ -83,7 +111,7 @@ def render_project_overview():
 
 def render_sdr_sir_explanation():
     with st.expander("2. 배경 설명: SDR과 SIR", expanded=True):
-        st.markdown(
+        md(
             r"""
             ## 2.1 Sufficient Dimension Reduction, SDR
 
@@ -95,7 +123,7 @@ def render_sdr_sir_explanation():
             """
         )
         st.latex(r"""Y \perp X \mid B^T X""")
-        st.markdown(
+        md(
             r"""
             이 조건의 의미는 다음과 같습니다.
 
@@ -127,7 +155,7 @@ def render_sdr_sir_explanation():
             \sum_{i:Y_i\in h} x_i
             """
         )
-        st.markdown("그다음 다음과 같은 SIR matrix를 구성합니다.")
+        md("그다음 다음과 같은 SIR matrix를 구성합니다.")
         st.latex(
             r"""
             \widehat M_{\mathrm{SIR}}
@@ -135,7 +163,7 @@ def render_sdr_sir_explanation():
             \sum_h \hat p_h \bar{x}_h\bar{x}_h^T
             """
         )
-        st.markdown(
+        md(
             r"""
             이 행렬의 큰 eigenvalue에 대응하는 eigenvector들이 response \(Y\)와 관련 있는
             중요한 방향으로 해석됩니다.
@@ -145,7 +173,7 @@ def render_sdr_sir_explanation():
 
 def render_kernel_sir_explanation():
     with st.expander("3. Kernel SIR: 비선형 구조를 잡기 위한 확장", expanded=True):
-        st.markdown(
+        md(
             r"""
             ## 3.1 Linear SIR의 한계
 
@@ -153,14 +181,14 @@ def render_kernel_sir_explanation():
             """
         )
         st.latex(r"""X \mapsto B^T X""")
-        st.markdown(
+        md(
             r"""
             하지만 실제 데이터에서는 \(Y\)가 \(X\)의 선형결합이 아니라 비선형 함수에
             의존할 수 있습니다. 예를 들어 circles 데이터는 대략 다음과 같은 구조를 가집니다.
             """
         )
         st.latex(r"""Y = 1\{X_1^2 + X_2^2 > c\}""")
-        st.markdown(
+        md(
             r"""
             이 경우 중요한 정보는 \(X_1\) 또는 \(X_2\)의 선형 방향이 아니라
             \(X_1^2+X_2^2\) 같은 비선형 feature입니다.
@@ -171,7 +199,7 @@ def render_kernel_sir_explanation():
             """
         )
         st.latex(r"""x \mapsto \Phi(x)\in\mathcal H""")
-        st.markdown(
+        md(
             r"""
             여기서 \(\mathcal H\)는 Hilbert space 또는 RKHS입니다.
             직접 \(\Phi(x)\)를 계산하지 않고, inner product만 kernel function으로 계산합니다.
@@ -184,7 +212,7 @@ def render_kernel_sir_explanation():
             \langle\Phi(x_i),\Phi(x_j)\rangle_{\mathcal H}
             """
         )
-        st.markdown("대표적인 classical kernel은 RBF kernel입니다.")
+        md("대표적인 classical kernel은 RBF kernel입니다.")
         st.latex(
             r"""
             K_{\mathrm{RBF}}(x,z)
@@ -192,7 +220,7 @@ def render_kernel_sir_explanation():
             \exp(-\gamma\|x-z\|^2)
             """
         )
-        st.markdown(
+        md(
             r"""
             RBF kernel은 가까운 점끼리는 similarity를 크게, 먼 점끼리는 similarity를 작게
             부여합니다.
@@ -211,7 +239,7 @@ def render_kernel_sir_explanation():
             \sum_{i:Y_i\in h}\Phi(x_i)
             """
         )
-        st.markdown("Kernel SIR operator는 다음처럼 생각할 수 있습니다.")
+        md("Kernel SIR operator는 다음처럼 생각할 수 있습니다.")
         st.latex(
             r"""
             \widehat M_{\mathrm{KSIR}}
@@ -219,7 +247,7 @@ def render_kernel_sir_explanation():
             \sum_h \hat p_h\, \hat\mu_h\otimes\hat\mu_h
             """
         )
-        st.markdown(
+        md(
             r"""
             이 앱에서는 \(\Phi(x)\)를 직접 계산하지 않고, kernel matrix만으로 feature-space에서의
             SIR 계산을 수행합니다.
@@ -229,7 +257,7 @@ def render_kernel_sir_explanation():
 
 def render_quantum_kernel_explanation():
     with st.expander("4. Quantum Kernel은 어디에 들어가는가?", expanded=True):
-        st.markdown(
+        md(
             r"""
             ## 4.1 Quantum feature map
 
@@ -244,7 +272,7 @@ def render_quantum_kernel_explanation():
             U_\phi(x)|0\rangle^{\otimes q}
             """
         )
-        st.markdown(
+        md(
             r"""
             여기서
 
@@ -266,7 +294,7 @@ def render_quantum_kernel_explanation():
             |\langle\phi(x_i)\mid\phi(x_j)\rangle|^2
             """
         )
-        st.markdown("회로 관점에서는 다음처럼 쓸 수 있습니다.")
+        md("회로 관점에서는 다음처럼 쓸 수 있습니다.")
         st.latex(
             r"""
             K_Q(x_i,x_j)
@@ -276,7 +304,7 @@ def render_quantum_kernel_explanation():
             \right|^2
             """
         )
-        st.markdown(
+        md(
             r"""
             즉 다음 과정을 통해 kernel value를 해석할 수 있습니다.
 
@@ -295,7 +323,7 @@ def render_quantum_kernel_explanation():
             """
         )
         st.latex(r"""K_{\mathrm{RBF}}\quad\longrightarrow\quad K_Q""")
-        st.markdown("따라서 전체 구조는 hybrid quantum-classical pipeline입니다.")
+        md("따라서 전체 구조는 hybrid quantum-classical pipeline입니다.")
         st.latex(
             r"""
             \text{Classical Data}
@@ -311,7 +339,7 @@ def render_quantum_kernel_explanation():
 
 def render_how_to_read_results():
     with st.expander("5. 결과 화면을 읽는 방법", expanded=True):
-        st.markdown(
+        md(
             r"""
             앱을 실행하면 다음 결과들이 표시됩니다.
 
@@ -338,7 +366,7 @@ def render_how_to_read_results():
             \frac{\#\{\hat y_i = y_i\}}{n_{\mathrm{test}}}
             """
         )
-        st.markdown(
+        md(
             r"""
             Accuracy가 높다는 것은 해당 2D embedding이 class 정보를 잘 보존한다는 뜻입니다.
 
@@ -355,7 +383,7 @@ def render_how_to_read_results():
             \frac{\sum_i(y_i-\hat y_i)^2}{\sum_i(y_i-\bar y)^2}
             """
         )
-        st.markdown(
+        md(
             r"""
             \(R^2\)가 높다는 것은 해당 embedding이 continuous response \(Y\)를 잘 설명한다는 뜻입니다.
 
@@ -368,7 +396,7 @@ def render_how_to_read_results():
 
 def render_limitations():
     with st.expander("6. 한계와 주의점", expanded=False):
-        st.markdown(
+        md(
             r"""
             이 프로젝트의 한계는 다음과 같습니다.
 
@@ -679,7 +707,7 @@ with col_c:
 with col_d:
     st.metric("Number of slices", len(np.unique(slices)))
 
-st.markdown(
+md(
     r"""
     여기서 slice는 SIR이 \(Y\)-정보를 사용하는 방식입니다.  
     classification에서는 class label이 slice이고, regression에서는 \(Y\)를 quantile bin으로 나눕니다.
@@ -697,7 +725,7 @@ qkernel = FidelityStatevectorKernel(feature_map=feature_map)
 with st.spinner("Computing quantum kernel matrix. This may take a while..."):
     K_q = qkernel.evaluate(x_vec=X_q)
 
-st.markdown(
+md(
     r"""
     아래 heatmap은 sample 간 similarity matrix를 보여줍니다.  
     밝은 색은 두 sample이 비슷하다는 뜻이고, 어두운 색은 덜 비슷하다는 뜻입니다.
@@ -726,10 +754,10 @@ with c3:
     st.pyplot(heatmap_plot(K_q, "Quantum Kernel Matrix"))
     st.caption("Qiskit quantum feature map으로 만든 quantum state들의 fidelity를 kernel로 사용한 matrix입니다.")
 
-metric_name = "Accuracy" if task_type == "classification" else "R^2"
+metric_name = "Accuracy" if task_type == "classification" else "R²"
 
 st.subheader("7.5 Embedding Comparison")
-st.markdown(
+md(
     r"""
     아래 그림들은 각 방법이 데이터를 2차원으로 줄인 결과입니다.  
     같은 색 또는 비슷한 response 값을 가진 점들이 잘 모이면, 해당 embedding이 \(Y\)-정보를 잘 보존한다고 볼 수 있습니다.
@@ -748,7 +776,7 @@ with d3:
     st.caption("Qiskit quantum kernel이 유도하는 feature space에서 SIR을 수행한 결과입니다.")
 
 st.subheader("7.6 Downstream Evaluation")
-st.markdown(
+md(
     r"""
     각 2D embedding 위에서 간단한 supervised model을 학습해 성능을 비교합니다.
 
@@ -786,7 +814,7 @@ st.info(
 )
 
 st.subheader("7.7 Quantum Feature Map Circuit")
-st.markdown(
+md(
     r"""
     아래 회로는 classical data \(x\)를 quantum state \(|\phi(x)\rangle\)로 encoding하는 데 사용됩니다.  
     이 회로가 quantum kernel matrix \(K_Q\)를 정의합니다.
@@ -795,10 +823,10 @@ st.markdown(
 st.text(feature_map.draw(output="text"))
 
 st.subheader("8. Final Interpretation")
-st.markdown("이번 실험은 다음 질문을 확인하기 위한 것입니다.")
+md("이번 실험은 다음 질문을 확인하기 위한 것입니다.")
 st.latex(r"""\text{Can a quantum kernel be inserted into a Kernel SIR pipeline?}""")
 
-st.markdown("이 앱에서 Quantum Kernel SIR은 다음 계산을 수행합니다.")
+md("이 앱에서 Quantum Kernel SIR은 다음 계산을 수행합니다.")
 st.latex(
     r"""
     X
@@ -811,7 +839,7 @@ st.latex(
     """
 )
 
-st.markdown("여기서 quantum kernel은 다음과 같이 정의됩니다.")
+md("여기서 quantum kernel은 다음과 같이 정의됩니다.")
 st.latex(
     r"""
     K_Q(x_i,x_j)
@@ -820,7 +848,7 @@ st.latex(
     """
 )
 
-st.markdown(
+md(
     r"""
     이 프로젝트의 결론은 다음과 같습니다.
 
